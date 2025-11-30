@@ -1,0 +1,141 @@
+from telebot.types import Message
+
+from keyboards.inline import gen_markup
+from loader import bot, storage
+from states.user_information import UserInfoState
+from api.api_kinopoisk import api_request
+from config_data.config import RAPID_API_KEY
+from typing import Any
+
+
+# Хранение параметров поиска по ID пользователя
+# user_search_data = {}
+
+
+# Первый шаг - запрос названия
+@bot.message_handler(commands=["movie_search"])
+def ask_movie_name(message: Message) -> None:
+    """
+    Обработчик команды /movie_search.
+    Устанавливает состояние ожидания ввода названия фильма в FSM.
+
+    :param message: объект сообщения Telegram от пользователя.
+    :return: None
+    """
+    bot.set_state(message.from_user.id, UserInfoState.keyword, message.chat.id)
+    bot.send_message(message.chat.id, "Пожалуйста, введите название фильма:")
+
+
+# Запрос жанра
+@bot.message_handler(state=UserInfoState.keyword)
+def ask_movie_genre(message: Message) -> None:
+    """
+    Обрабатывает сообщение с названием фильма.
+
+    Сохраняет введённое название в данные пользователя в FSM и переводит состояние на ввод жанра.
+
+    :param message: объект сообщения Telegram от пользователя.
+    :return: None
+    """
+    bot.send_message(
+        message.chat.id,
+        "Спасибо, записали название. Теперь выберите жанр:",
+        reply_markup=gen_markup(),
+    )
+    bot.set_state(message.from_user.id, UserInfoState.genre, message.chat.id)
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["keyword"] = message.text
+    # bot.send_message(message.chat.id, "Введите жанр")
+
+
+@bot.callback_query_handler(
+    func=lambda callback_query: callback_query.data, state=UserInfoState.genre
+)
+def callback_handler(callback_query) -> None:
+    # Сохраняем выбранный жанр в FSM
+    with bot.retrieve_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    ) as data:
+        data["genre"] = callback_query.data
+
+    # удаляем клавиатуру
+    bot.edit_message_reply_markup(
+        callback_query.from_user.id,
+        callback_query.message.message_id,
+        reply_markup=None,
+    )
+
+    bot.send_message(
+        callback_query.from_user.id,
+        "Спасибо, записали выбранный вами жанр. Теперь введите число сколько фильмов/сериалов показать:",
+    )
+    bot.set_state(
+        callback_query.from_user.id,
+        UserInfoState.output,
+        callback_query.message.chat.id,
+    )
+
+
+@bot.message_handler(state=UserInfoState.output)
+def finish_collection(message: Message) -> list[dict[str, Any]]:
+    """
+    Обрабатывает сообщение с лимитом.
+
+    Сохраняет введённый лимит в данные пользователя в FSM. Отправляет запрос по API c введенными данными от пользователя.
+
+    :param message: объект сообщения Telegram от пользователя.
+    :return: None
+    """
+    if message.text.isdigit() and 1 <= int(message.text) <= 20:
+        # bot.set_state(message.from_user.id, UserInfoState.output, message.chat.id)
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data["output"] = int(message.text)
+            params = data  # создаём копию параметров
+
+    else:
+        bot.send_message(message.chat.id, "Введите число от 1 до 20:")
+        return
+
+    bot.send_message(message.chat.id, "Спасибо, записали. Вот список фильмов/сериалов:")
+
+    headers = {"X-API-KEY": RAPID_API_KEY}
+    bot.send_message(
+        message.chat.id,
+        f"Собраны параметры для поиска: {params}\n"
+        f"Можете использовать этот словарь для запроса по API.",
+    )
+
+    answer = api_request(params, headers)
+    bot.reset_data(message.from_user.id, message.chat.id)  # сброс состояния
+
+    # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
+    for film in answer:
+        description = film["description"].replace(
+            "\xa0", " "
+        )  # убираем неразрывные пробелы
+        caption = (
+            f"**{film['nameRu']}**, {film['year']}\n"
+            f"Жанр: {film['genre'] or 'не указан'}\n"
+            f"Возрастное ограничение: {film['ratingAgeLimits']}\n"
+            f"Рейтинг IMDb: {film['ratingImdb']}\n\n"
+            f"Описание фильма: *{description}*"
+        )
+
+        bot.send_photo(
+            chat_id=message.chat.id,
+            photo=film["posterUrl"],
+            caption=caption,
+            parse_mode="Markdown",
+        )
+
+
+"""
+TODO: Здесь нужно написать функцию для записи данных поиска в базу данных и показать результаты поиска пользователю.
+Функция как вспомогательная утилита будет
+
+"""
+
+# wait_for_name(message) — спрашивает название, принимает, сохраняет.
+# wait_for_genre(message) — спрашивает жанр, принимает, сохраняет.
+# wait_for_limit(message) — спрашивает количество результатов, принимает, сохраняет.
+# search_and_send_results(message, params) — делает запрос к API и отправляет результаты.
