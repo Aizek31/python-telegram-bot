@@ -21,7 +21,7 @@ def filter_id_films(films: list[int], params: dict[str, Any]) -> list[dict[str, 
     cinema = []
     for id in films:
         url_film = f"https://kinopoiskapiunofficial.tech/api/v2.2/films/{id}"
-        response_film = requests.get(url_film, headers=headers, timeout=(30, 60))
+        response_film = requests.get(url_film, headers=headers)
         data_2 = response_film.json()
         key_filters = {
             "nameRu",

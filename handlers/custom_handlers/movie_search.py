@@ -1,12 +1,15 @@
+import pprint
+from typing import Any
 from telebot.types import Message
 
+
 from keyboards.inline import gen_markup
-from loader import bot, storage
+from keyboards.inline import gen_number_markup
 from states.user_information import UserInfoState
 from api.api_kinopoisk import api_request
 from config_data.config import RAPID_API_KEY
-from typing import Any
-
+from loader import bot
+from database.ORM import add_history
 
 # Хранение параметров поиска по ID пользователя
 # user_search_data = {}
@@ -43,6 +46,7 @@ def ask_movie_genre(message: Message) -> None:
         reply_markup=gen_markup(),
     )
     bot.set_state(message.from_user.id, UserInfoState.genre, message.chat.id)
+    # Этот менеджер создает словарь data и записывает туда полученные данных от пользователя
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data["keyword"] = message.text
     # bot.send_message(message.chat.id, "Введите жанр")
@@ -99,25 +103,26 @@ def finish_collection(message: Message) -> list[dict[str, Any]]:
     bot.send_message(message.chat.id, "Спасибо, записали. Вот список фильмов/сериалов:")
 
     headers = {"X-API-KEY": RAPID_API_KEY}
-    bot.send_message(
-        message.chat.id,
-        f"Собраны параметры для поиска: {params}\n"
-        f"Можете использовать этот словарь для запроса по API.",
-    )
-
     answer = api_request(params, headers)
+
+    # Добавление результатов поиска в базу данных
+    add_history(answer, message.from_user.id)
     bot.reset_data(message.from_user.id, message.chat.id)  # сброс состояния
 
     # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
     for film in answer:
-        description = film["description"].replace(
-            "\xa0", " "
-        )  # убираем неразрывные пробелы
+        if film["description"] is not None:
+            description = film["description"].replace(
+                "\xa0", " "
+            )  # убираем неразрывные пробелы
+        else:
+            description = "Без описания"
+
         caption = (
             f"**{film['nameRu']}**, {film['year']}\n"
             f"Жанр: {film['genre'] or 'не указан'}\n"
-            f"Возрастное ограничение: {film['ratingAgeLimits']}\n"
-            f"Рейтинг IMDb: {film['ratingImdb']}\n\n"
+            f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
+            f"Рейтинг IMDb: {film['ratingImdb'] or 'отсутствует'}\n\n"
             f"Описание фильма: *{description}*"
         )
 

@@ -1,9 +1,5 @@
 from datetime import datetime
-import sqlite3
-import os
-from re import search
 
-from config_data.config import BASE_DIR
 from peewee import (
     SqliteDatabase,
     Model,
@@ -12,18 +8,21 @@ from peewee import (
     TextField,
     FloatField,
     DateField,
+    AutoField,
 )
+
+from config_data.config import DB_PATH
 
 
 # подключаемся к базе данных my_database.db, если файл отсутствует то будет создан автоматически
-db = SqliteDatabase("bot_database.db")
+db = SqliteDatabase(DB_PATH)
 
 
 # создаём модель для History
 class ModelBase(Model):
 
     # Дата поиска
-    date_search = DateField(default=datetime.now())
+    date_search = DateField(default=datetime.now)
 
     # во внутреннем классе Meta указываем нашу базу данных
 
@@ -33,8 +32,10 @@ class ModelBase(Model):
 
 class History(ModelBase):
 
-    # первичный ключ модели, будет совпадать с Telegram ID. Это значит, что он будет уникальным для всей таблицы.
-    user_id = IntegerField(primary_key=True)
+    # автоматическое создание уникального ключа в базе данных
+    id = AutoField(primary_key=True)
+    # это уникальный ключ пользователя
+    user_id = IntegerField()
     # Название фильма/сериала
     name_movie = CharField()
     # Описание фильма
@@ -44,48 +45,12 @@ class History(ModelBase):
     # год производства фильма
     year_movie = IntegerField()
     # Жанр фильма
-    jenre_movie = CharField()
+    jenre_movie = CharField(null=True, default="неизвестно")
     # Возрастной рейтинг
     age_limit = IntegerField()
     # Постер фильма
     poster_url = CharField()
 
 
-# создаём таблицу users в базе данных
-# db.create_tables([History])
-
-# Пример записи в историю данных о фильме
-# user1 = History(
-#     date_search="2025-07-13",
-#     name_movie="Халк",
-#     description_movie="Учёный превращается в большого зелёного монстра",
-#     rating_movie=8.7,
-#     year_movie=2002,
-#     jenre_movie="фантастика",
-#     age_limit=16,
-#     poster_url="hulk.ru",
-# )
-#
-# # сохранение данных
-# user1.save()
-#
-# users = User.select()  # получаем список пользователей
-# for user in users:
-#     print(user.name, user.age)
-# Дима 25
-# Костя 30
-
-
-# TODO: этот код пример записи результата запроса по АПИ в базу данных
-"""
-search_date = datetime.date.today()
-
-for item in data['results']:
-    movie = Movie(
-        search_date=search_date,
-        title=item['title'],
-        genre=item['genre'],
-        year=int(item['year'])
-    )
-    movie.save()
-"""
+db.connect()
+db.create_tables([History], safe=True)

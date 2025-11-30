@@ -1,5 +1,4 @@
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from telebot import TeleBot
 
 
 # Внизу это пример кода создания кнопки инлайн
