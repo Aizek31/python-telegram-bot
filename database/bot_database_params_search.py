@@ -1,3 +1,4 @@
+# TODO: здесь нужно написать модель для базы данных для параметров поиска, которые вводить пользователь
 from datetime import datetime
 
 from peewee import (
@@ -5,17 +6,16 @@ from peewee import (
     Model,
     CharField,
     IntegerField,
-    TextField,
     FloatField,
     DateField,
     AutoField,
 )
 
-from config_data.config import DB_PATH
+from config_data.config import DB_PATH_SEARCH
 
 
-# подключаемся к базе данных my_database.db, если файл отсутствует то будет создан автоматически
-db = SqliteDatabase(DB_PATH)
+# подключаемся к базе данных database_search.db, если файл отсутствует то будет создан автоматически
+db = SqliteDatabase(DB_PATH_SEARCH)
 
 
 # создаём модель для History
@@ -30,27 +30,19 @@ class ModelBase(Model):
         database = db
 
 
-class History(ModelBase):
+class HistorySearch(ModelBase):
 
     # автоматическое создание уникального ключа в базе данных
     id = AutoField(primary_key=True)
     # это уникальный ключ пользователя
     user_id = IntegerField()
-    # Название фильма/сериала
-    name_movie = CharField()
-    # Описание фильма
-    description_movie = TextField()
     # Рейтинг фильма
-    rating_movie = FloatField()
-    # год производства фильма
-    year_movie = IntegerField()
+    name_movie = CharField()
     # Жанр фильма
     jenre_movie = CharField(null=True, default="неизвестно")
-    # Возрастной рейтинг
-    age_limit = IntegerField()
-    # Постер фильма
-    poster_url = CharField()
+    # количество фильмов для показа
+    output = IntegerField()
 
 
 db.connect()
-db.create_tables([History], safe=True)
+db.create_tables([HistorySearch], safe=True)

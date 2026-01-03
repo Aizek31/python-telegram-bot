@@ -1,7 +1,8 @@
-from typing import Dict, Union, Any
+from typing import Union, Any
 import requests
-from utils.filters_films_custom import filter_id_films
+from utils.filters_films_custom import filter_id_films, target_genre
 from log_config import logger
+from config_data.config import RAPID_API_KEY
 
 
 @logger.catch
@@ -26,13 +27,24 @@ def api_request(
     id_films = []
     data = response.json()
     films = data.get("films", [])
+
     for film in films:
-        # Название на русском
         id = film.get("filmId", "нет данных")
         id_films.append(id)
-    id_films = id_films[: params["output"]]  # фильтруем нужное количество фильмов
-
+    # ограничение показа фильмов
+    limit = params["output"]
+    id_films = id_films[:limit]
     # Функция фильтр по ключевым словам
-    output_info_films = filter_id_films(id_films, params)
+    output_info_films = filter_id_films(id_films, params, headers)
 
     return output_info_films
+
+
+@logger.catch
+def api_request_rating(user_info: dict[str, Any]) -> dict[str, Any]:
+    url = "https://kinopoiskapiunofficial.tech/api/v2.2/films"
+    data = requests.get(url=url, params=user_info, headers=headers)
+    query_output = data.json()
+    data_dictionary = query_output["items"][0]
+
+    return data_dictionary

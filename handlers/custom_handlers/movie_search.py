@@ -1,4 +1,3 @@
-import pprint
 from typing import Any
 from telebot.types import Message
 
@@ -9,10 +8,10 @@ from states.user_information import UserInfoState
 from api.api_kinopoisk import api_request
 from config_data.config import RAPID_API_KEY
 from loader import bot
-from database.ORM import add_history
+from database.ORM import add_history, add_history_user_info
 
-# Хранение параметров поиска по ID пользователя
-# user_search_data = {}
+
+# from utils.pagination import send_page
 
 
 # Первый шаг - запрос названия
@@ -49,7 +48,6 @@ def ask_movie_genre(message: Message) -> None:
     # Этот менеджер создает словарь data и записывает туда полученные данных от пользователя
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data["keyword"] = message.text
-    # bot.send_message(message.chat.id, "Введите жанр")
 
 
 @bot.callback_query_handler(
@@ -72,6 +70,7 @@ def callback_handler(callback_query) -> None:
     bot.send_message(
         callback_query.from_user.id,
         "Спасибо, записали выбранный вами жанр. Теперь введите число сколько фильмов/сериалов показать:",
+        reply_markup=gen_number_markup(),
     )
     bot.set_state(
         callback_query.from_user.id,
@@ -80,34 +79,46 @@ def callback_handler(callback_query) -> None:
     )
 
 
-@bot.message_handler(state=UserInfoState.output)
-def finish_collection(message: Message) -> list[dict[str, Any]]:
+@bot.callback_query_handler(
+    func=lambda callback_query: callback_query.data, state=UserInfoState.output
+)
+def finish_collection_callback_handler(callback_query) -> list[dict[str, Any]]:
     """
     Обрабатывает сообщение с лимитом.
 
     Сохраняет введённый лимит в данные пользователя в FSM. Отправляет запрос по API c введенными данными от пользователя.
 
-    :param message: объект сообщения Telegram от пользователя.
+    :param callback_query: объект сообщения Telegram от пользователя.
     :return: None
     """
-    if message.text.isdigit() and 1 <= int(message.text) <= 20:
-        # bot.set_state(message.from_user.id, UserInfoState.output, message.chat.id)
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data["output"] = int(message.text)
-            params = data  # создаём копию параметров
+    # if message.text.isdigit() and 1 <= int(message.text) <= 20:
+    # bot.set_state(message.from_user.id, UserInfoState.output, message.chat.id)
+    with bot.retrieve_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    ) as data:
+        data["output"] = int(callback_query.data)
+        params = data  # создаём копию параметров
 
-    else:
-        bot.send_message(message.chat.id, "Введите число от 1 до 20:")
-        return
-
-    bot.send_message(message.chat.id, "Спасибо, записали. Вот список фильмов/сериалов:")
+    # удаляем клавиатуру
+    bot.edit_message_reply_markup(
+        callback_query.from_user.id,
+        callback_query.message.message_id,
+        reply_markup=None,
+    )
+    bot.send_message(
+        callback_query.message.chat.id,
+        "Спасибо, записали. Вот список фильмов/сериалов:",
+    )
 
     headers = {"X-API-KEY": RAPID_API_KEY}
     answer = api_request(params, headers)
 
     # Добавление результатов поиска в базу данных
-    add_history(answer, message.from_user.id)
-    bot.reset_data(message.from_user.id, message.chat.id)  # сброс состояния
+    add_history_user_info(params, callback_query.from_user.id)
+    add_history(answer, callback_query.from_user.id)
+    bot.reset_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    )  # сброс состояния
 
     # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
     for film in answer:
@@ -122,13 +133,13 @@ def finish_collection(message: Message) -> list[dict[str, Any]]:
             f"**{film['nameRu']}**, {film['year']}\n"
             f"Жанр: {film['genre'] or 'не указан'}\n"
             f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-            f"Рейтинг IMDb: {film['ratingImdb'] or 'отсутствует'}\n\n"
+            f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
             f"Описание фильма: *{description}*"
         )
 
         bot.send_photo(
-            chat_id=message.chat.id,
-            photo=film["posterUrl"],
+            chat_id=callback_query.message.chat.id,
+            photo=film["posterUrlPreview"],
             caption=caption,
             parse_mode="Markdown",
         )

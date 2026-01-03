@@ -1,1 +1,1 @@
-from . import movie_search
+from . import movie_search, movie_by_rating, low_budget_movie
