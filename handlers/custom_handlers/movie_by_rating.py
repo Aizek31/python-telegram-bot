@@ -124,6 +124,7 @@ def finish_callback_handler(callback_query) -> dict[str, Any]:
     # Сброс состояния
     bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
 
+    # TODO: это можно переделать в функцию, где из жанров делается список
     for film in user_target_genre:
         # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
         genres = film.get("genres") or []

@@ -2,12 +2,11 @@
 from typing import Any
 from telebot.types import Message
 
-
 from keyboards.inline import gen_markup_genre
-from keyboards.inline import gen_number_markup
 from states.user_information_budjet import UserState
-from config_data.config import RAPID_API_KEY
 from loader import bot
+from api.api_kinopoisk_budget import search_id_genre, search_movie, low_check_budget
+from utils.filters_films_custom import filter_response
 
 
 @bot.message_handler(commands=["low_budget_movie"])
@@ -66,41 +65,43 @@ def finish_callback_handler(message: Message) -> dict[str, Any]:
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data["year"] = int(message.text)
         enter_info = data  # создаём копию параметров
-        print(enter_info)
-        # params = {"ratingFrom": 0, "ratingTo": rating_user}
+        target_genre = enter_info["genre_cinema"]
+        year_movie = enter_info["year"]
 
     bot.send_message(
         message.chat.id,
         "Спасибо ваш ответ записан. Вот список кино, которое мы нашли по Вашему запросу:",
     )
 
-    # headers = {"X-API-KEY": RAPID_API_KEY}
-    # answer = api_request_rating(params, headers)
-    # output_limit_film = int(user_info["output"])
-    # answer_filters = filter_response(answer)
-    # genre = user_info["genre"]
-    # user_target_genre = target_genre(output_limit_film, genre, answer_filters)
-    # # TODO: здесь нужно написать, который записывает результаты поиска в базу данных
+    # Сброс состояния
+    bot.reset_data(message.from_user.id, message.chat.id)
+
+    # достаёт id жанра
+    id_genre = search_id_genre(target_genre)
+    # ищет фильмы по id и году выпуска
+    catalog_movie = search_movie(id_genre, year_movie)
+    # отбирает низкобюджетные фильмы
+    low_budget = low_check_budget(catalog_movie)
+    # вывод отфильтрованных фильмов
+    filter_movie = filter_response(low_budget)
+    # TODO: здесь нужно написать, который записывает результаты поиска в базу данных
     # add_history(user_target_genre, callback_query.from_user.id)
-    #
-    # # Сброс состояния
-    # bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
-    #
-    # for film in user_target_genre:
-    #     # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
-    #     genres = film.get("genres") or []
-    #     genres = [genre["genre"] for genre in genres]
-    #     caption = (
-    #         f"**{film['nameRu']}**, {film['year']}\n"
-    #         f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
-    #         f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-    #         f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-    #         f"Описание фильма: *{film["description"]}*"
-    #     )
-    #
-    #     bot.send_photo(
-    #         chat_id=callback_query.message.chat.id,
-    #         photo=film["posterUrlPreview"],
-    #         caption=caption,
-    #         parse_mode="Markdown",
-    #     )
+    # TODO: это можно переделать в функцию, где из жанров делается список
+    for film in filter_movie:
+        # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
+        genres = film.get("genres") or []
+        genres = [genre["genre"] for genre in genres]
+        caption = (
+            f"**{film['nameRu']}**, {film['year']}\n"
+            f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
+            f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
+            f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
+            f"Описание фильма: *{film["description"]}*"
+        )
+
+        bot.send_photo(
+            chat_id=message.chat.id,
+            photo=film["posterUrlPreview"],
+            caption=caption,
+            parse_mode="Markdown",
+        )

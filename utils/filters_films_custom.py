@@ -22,7 +22,6 @@ def filter_id_films(
     cinema = []
     for id in films:
         url_film = f"https://kinopoiskapiunofficial.tech/api/v2.2/films/{id}"
-        # headers = {"X-API-KEY": RAPID_API_KEY}
         response_film = requests.get(url_film, headers=headers)
         data_2 = response_film.json()
         key_filters = {
@@ -93,9 +92,6 @@ def filter_response(films: list[dict[str, Any]]) -> list[dict[str, Any]]:
     # Добавляем описание для каждого фильма. Этот код надо переписать как вспомогательную функцию
     for movie in filtered_data:
         id_movie = movie["kinopoiskId"]
-        # проверка бюджета
-        # budget = check_budget(id_movie)
-        # pprint.pprint(budget)
         url = f"https://kinopoiskapiunofficial.tech/api/v2.2/films/{id_movie}"
         headers = {"X-API-KEY": RAPID_API_KEY}
         data_3 = requests.get(url=url, headers=headers)
@@ -166,17 +162,3 @@ def target_genre(
     filter_movie = filter_movie[:output_limit_movie]
 
     return filter_movie
-
-
-#################################################################################
-
-
-def check_budget(id_movie: int) -> int:
-
-    headers = {"X-API-KEY": RAPID_API_KEY}
-    id = id_movie
-    url_1 = f"https://kinopoiskapiunofficial.tech/api/v2.2/films/{id}/box_office"
-    data = requests.get(url=url_1, headers=headers)
-    response = data.json()
-
-    return response
