@@ -14,6 +14,10 @@ from loader import bot
 from states.user_information_rating import UserState
 from utils.filters_films_custom import target_genre, filter_response
 from database.ORM import add_history
+from loggger_config import setup_logger
+
+
+log = setup_logger(__file__)
 
 
 @bot.message_handler(commands=["movie_by_rating"])
@@ -26,7 +30,7 @@ def ask_movie_rating(message: Message) -> None:
     :return: None
     """
     bot.set_state(message.from_user.id, UserState.rating_movie, message.chat.id)
-    bot.send_message(message.chat.id, "Пожалуйста, введите рейтинг фильма/сериала:")
+    bot.send_message(message.chat.id, "🎬 Введите рейтинг фильма/сериала (0-10):")
 
 
 @bot.message_handler(state=UserState.rating_movie)
@@ -39,18 +43,18 @@ def ask_movie_jenre_for_rating(message: Message) -> None:
     :return: None
     """
 
-    rating = int(message.text)
+    rating = float(message.text)
 
-    if not (0 < rating <= 10):
+    if not (0.0 < rating <= 10.0):
         bot.send_message(
             message.chat.id,
-            "❌ Рейтинг должен быть в диапазоне от 0 до 10. Попробуйте еще раз:",
+            "❌ Рейтинг должен быть в диапазоне от 0.0 до 10.0\nПопробуйте еще раз:",
         )
         return
     else:
         bot.send_message(
             message.chat.id,
-            "Спасибо записали, теперь выберите жанр:",
+            "✅ Спасибо! Рейтинг записан 🎬\n" "Теперь выберите жанр фильма: 🎭",
             reply_markup=gen_markup_genre(),
         )
         bot.set_state(message.from_user.id, UserState.genre_movie, message.chat.id)
@@ -82,7 +86,7 @@ def callback_handler(callback_query) -> None:
     )
     bot.send_message(
         callback_query.from_user.id,
-        "Спасибо записали жанр. Теперь введите число сколько фильмов/сериалов показать:",
+        "✅ Спасибо! Жанр записан 🎬\n✨ Теперь введите количество фильмов/сериалов для показа (1-20):",
         reply_markup=gen_number_markup_rating(),
     )
     bot.set_state(
@@ -95,65 +99,93 @@ def callback_handler(callback_query) -> None:
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data, state=UserState.output_films
 )
-def finish_callback_handler(callback_query) -> dict[str, Any]:
+def finish_callback_handler(callback_query) -> None:
     """
     Обрабатывает сообщением с лимитом показа фильмов.
     Делает запрос по API и возвращает ответ пользователю.
 
     :param callback_query: объект сообщения Telegram от пользователя.
-    :return: Возвращает словарь для отправки пользователю.
+    :return: Возвращает список для отправки пользователю.
     """
     SUCCESS = False
-    with bot.retrieve_data(
-        callback_query.from_user.id, callback_query.message.chat.id
-    ) as user_info:
-        user_info["output"] = int(callback_query.data)
-        enter_info = user_info  # создаём копию параметров
-        rating_user = enter_info["rating_cinema"]
-        params = {"ratingFrom": 0, "ratingTo": rating_user}
+    try:
+        with bot.retrieve_data(
+            callback_query.from_user.id, callback_query.message.chat.id
+        ) as user_info:
+            user_info["output"] = int(callback_query.data)
+            enter_info = user_info  # создаём копию параметров
+            rating_user = enter_info["rating_cinema"]
+            params = {"ratingFrom": 0, "ratingTo": rating_user}
 
-    bot.edit_message_reply_markup(
-        callback_query.from_user.id,
-        callback_query.message.message_id,
-        reply_markup=None,
-    )
-    bot.send_message(
-        callback_query.message.chat.id,
-        "Спасибо ваш ответ записан. Вот список кино, которое мы нашли по Вашему запросу:",
-    )
-
-    headers = {"X-API-KEY": RAPID_API_KEY}
-    answer = api_request_rating(params, headers)
-    output_limit_film = int(user_info["output"])
-    answer_filters = filter_response(answer)
-    genre = user_info["genre"]
-    user_target_genre = target_genre(output_limit_film, genre, answer_filters)
-    # Запись найденных фильмов в базу данных
-    add_history(user_target_genre, callback_query.from_user.id)
-
-    # Сброс состояния
-    bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
-
-    # TODO: это можно переделать в функцию, где из жанров делается список
-    for film in user_target_genre:
-        # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
-        genres = film.get("genres") or []
-        genres = [genre["genre"] for genre in genres]
-        caption = (
-            f"**{film['nameRu']}**, {film['year']}\n"
-            f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
-            f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-            f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-            f"Описание фильма: *{film["description"]}*"
+        bot.edit_message_reply_markup(
+            callback_query.from_user.id,
+            callback_query.message.message_id,
+            reply_markup=None,
+        )
+        bot.send_message(
+            callback_query.message.chat.id,
+            "Спасибо! Ваш ответ записан. 🔍 Ищем фильмы...",
         )
 
-        bot.send_photo(
-            chat_id=callback_query.message.chat.id,
-            photo=film["posterUrlPreview"],
-            caption=caption,
-            parse_mode="Markdown",
+        headers = {"X-API-KEY": RAPID_API_KEY}
+        answer = api_request_rating(params, headers)
+        output_limit_film = int(user_info["output"])
+        answer_filters = filter_response(answer)
+        genre = user_info["genre"]
+        user_target_genre = target_genre(output_limit_film, genre, answer_filters)
+
+        # rating_text = data["rating_cinema"]
+        if user_target_genre:
+            bot.send_message(
+                callback_query.message.chat.id,
+                f"✅ Найдено фильмов c рейтингом {rating_user}: {len(user_target_genre)}",
+            )
+
+        else:
+            bot.send_message(
+                callback_query.message.chat.id,
+                f"😔 К сожалению, фильмы c рейтингом {rating_user} не найдены.",
+            )
+            return
+
+        # Запись найденных фильмов в базу данных
+        add_history(user_target_genre, callback_query.from_user.id)
+
+        # TODO: это можно переделать в функцию, где из жанров делается список
+        for film in user_target_genre:
+            # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
+            genres = film.get("genres") or []
+            genres = [genre["genre"] for genre in genres]
+            caption = (
+                f"**{film['nameRu']}**, {film['year']}\n"
+                f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
+                f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
+                f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
+                f"Описание фильма: *{film["description"]}*"
+            )
+
+            bot.send_photo(
+                chat_id=callback_query.message.chat.id,
+                photo=film["posterUrlPreview"],
+                caption=caption,
+                parse_mode="Markdown",
+            )
+
+    except ValueError:
+        bot.send_message(
+            callback_query.message.chat.id,
+            "❌ Введите рейтинг числом. Попробуйте ещё раз:",
+        )
+
+    except Exception as error:
+        log.error(f"Error for user {callback_query.from_user.id}: {error}")
+        bot.send_message(
+            callback_query.message.chat.id,
+            "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /movie_by_rating",
         )
         # Сброс состояний
         if SUCCESS:
-            bot.reset_data(message.from_user.id, message.chat.id)
-            bot.delete_state(message.from_user.id, message.chat.id)
+            bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
+            bot.delete_state(
+                callback_query.from_user.id, callback_query.message.chat.id
+            )
