@@ -2,6 +2,9 @@ from typing import Any
 from config_data.config import RAPID_API_KEY
 import requests
 
+# from loguru import logger
+# from loggger_config import setup_logger
+
 
 def search_id_genre(genre_from_user: str) -> int:
     """
@@ -20,9 +23,10 @@ def search_id_genre(genre_from_user: str) -> int:
     list_id = response["genres"]
     found_genre = None
     for id_movie in list_id:
-        if id_movie["genre"] == genre_from_user:
+        if id_movie["genre"] == genre_from_user.lower():
             found_genre = id_movie["id"]
             break
+
     return found_genre
 
 

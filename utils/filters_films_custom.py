@@ -1,9 +1,10 @@
 from typing import Any
 
 from config_data.config import RAPID_API_KEY
-from log_config import logger
+from loggger_config import setup_logger
 import requests
 import pprint
+from loguru import logger
 
 
 # Получаем все фильмы по ID

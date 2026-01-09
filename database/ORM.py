@@ -1,8 +1,9 @@
 from typing import Dict, Any
 from .bot_database_films import History, db
 from .bot_database_params_search import HistorySearch
-from log_config import logger
+from loggger_config import setup_logger
 from utils.filters_films_custom import filter_genres
+from loguru import logger
 
 
 @logger.catch
@@ -27,7 +28,7 @@ def add_history(films: list[dict[str, Any]], user_id: int) -> None:
                     "description_movie": film.get("description")
                     or "Описание отсутствует",
                     "rating_movie": film.get("ratingKinopoisk") or 0.0,
-                    "year_movie": int(film.get("year", "отсутствует")),
+                    "year_movie": int(film.get("year", 0)),
                     "genre_movie": film.get("genre") or "неизвестно",
                     "age_limit": int(
                         film.get("ratingAgeLimits", "0")

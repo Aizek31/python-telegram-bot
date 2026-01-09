@@ -38,15 +38,25 @@ def ask_movie_jenre_for_rating(message: Message) -> None:
     :param message: объект сообщения Telegram от пользователя.
     :return: None
     """
-    bot.send_message(
-        message.chat.id,
-        "Спасибо записали, теперь выберите жанр:",
-        reply_markup=gen_markup_genre(),
-    )
-    bot.set_state(message.from_user.id, UserState.genre_movie, message.chat.id)
 
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as user_info:
-        user_info["rating_cinema"] = float(message.text)
+    rating = int(message.text)
+
+    if not (0 < rating <= 10):
+        bot.send_message(
+            message.chat.id,
+            "❌ Рейтинг должен быть в диапазоне от 0 до 10. Попробуйте еще раз:",
+        )
+        return
+    else:
+        bot.send_message(
+            message.chat.id,
+            "Спасибо записали, теперь выберите жанр:",
+            reply_markup=gen_markup_genre(),
+        )
+        bot.set_state(message.from_user.id, UserState.genre_movie, message.chat.id)
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as user_info:
+            user_info["rating_cinema"] = float(message.text)
 
 
 @bot.callback_query_handler(
@@ -93,7 +103,7 @@ def finish_callback_handler(callback_query) -> dict[str, Any]:
     :param callback_query: объект сообщения Telegram от пользователя.
     :return: Возвращает словарь для отправки пользователю.
     """
-
+    SUCCESS = False
     with bot.retrieve_data(
         callback_query.from_user.id, callback_query.message.chat.id
     ) as user_info:
@@ -118,7 +128,7 @@ def finish_callback_handler(callback_query) -> dict[str, Any]:
     answer_filters = filter_response(answer)
     genre = user_info["genre"]
     user_target_genre = target_genre(output_limit_film, genre, answer_filters)
-    # TODO: здесь нужно написать, который записывает результаты поиска в базу данных
+    # Запись найденных фильмов в базу данных
     add_history(user_target_genre, callback_query.from_user.id)
 
     # Сброс состояния
@@ -143,3 +153,7 @@ def finish_callback_handler(callback_query) -> dict[str, Any]:
             caption=caption,
             parse_mode="Markdown",
         )
+        # Сброс состояний
+        if SUCCESS:
+            bot.reset_data(message.from_user.id, message.chat.id)
+            bot.delete_state(message.from_user.id, message.chat.id)

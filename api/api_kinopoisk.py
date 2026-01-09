@@ -1,8 +1,10 @@
 from typing import Union, Any
 import requests
 from utils.filters_films_custom import filter_id_films, target_genre
-from log_config import logger
+
+# from logger_config import logger
 from config_data.config import RAPID_API_KEY
+from loguru import logger
 
 
 @logger.catch

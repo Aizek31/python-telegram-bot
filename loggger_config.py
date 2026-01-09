@@ -1,70 +1,73 @@
-from loguru import logger
+import os
 import sys
-
-"""
-Добавлено логирование кода с уровня "INFO" и вывод в консоль информации
-"""
+from loguru import logger
 
 
 def setup_logger(
-    log_file: str = "app.log",
+    log_file: str | None = "app.log",
     rotation: str = "10 MB",
     retention: str = "7 days",
-    level: str = "INFO",
+    level: str = "DEBUG",
+    caller_file: str | None = None,
 ):
     """
-        Настраивает Loguru logger для вывода в консоль и файл с ротацией.
+    Настраивает Loguru logger для вывода в консоль и файл с ротацией.
 
-        Функция удаляет стандартный обработчик Loguru и настраивает два новых:
-        1. Файл с автоматической ротацией по размеру/времени и удалением старых логов
-        2. Цветной вывод в консоль (sys.stderr) с детальной отладочной информацией
+    Функция удаляет стандартный обработчик Loguru и настраивает два новых:
+    1. Файл с автоматической ротацией по размеру/времени и удалением старых логов
+    2. Цветной вывод в консоль (sys.stderr) с детальной отладочной информацией
 
-        Args:
-            log_file (str): Имя файла лога. По умолчанию "app.log"
-            rotation (str): Условие ротации файла.
-                            Примеры: "10 MB", "500 MB", "1 day", "1 week"
-            retention (str): Срок хранения старых логов.
-                            Примеры: "7 days", "1 month", "1 year"
-            level (str): Минимальный уровень логирования.
-                        Возможные значения: "TRACE", "DEBUG", "INFO", "SUCCESS",
-                        "WARNING", "ERROR", "CRITICAL"
+    Args:
+        log_file (str | None): Имя файла лога.
+            - Если задано строкой, используется как есть.
+            - Если None, имя формируется по имени вызывающего файла: main.py -> main.log.
+        rotation (str): Условие ротации файла.
+                        Примеры: "10 MB", "500 MB", "1 day", "1 week"
+        retention (str): Срок хранения старых логов.
+                        Примеры: "7 days", "1 month", "1 year"
+        level (str): Минимальный уровень логирования.
+                    Возможные значения: "TRACE", "DEBUG", "INFO", "SUCCESS",
+                    "WARNING", "ERROR", "CRITICAL"
+        caller_file (str | None): Путь к файлу, из которого вызывают логгер.
+                    Обычно передают __file__. Если None, берётся файл с этой функцией.
 
-        Returns:
-            loguru.logger: Настроенный объект logger, готовый к использованию
+    Returns:
+        loguru.logger: Настроенный объект logger, готовый к использованию.
+    """
 
-        Example:
-            >>> from setup_logger import setup_logger
-            >>> log = setup_logger("myapp.log", rotation="5 MB", level="DEBUG")
-            >>> log.info("Приложение запущено")
-            >>> log.error("Критическая ошибка!")
+    # если не передали, считаем, что вызывают из этого же файла
+    if caller_file is None:
+        caller_file = __file__
 
-            Результат:
-            - myapp.log: текстовый файл с ротацией
-            - Консоль: цветной вывод с временем и уровнем
+    # директория вызывающего файла
+    base_dir = os.path.dirname(os.path.abspath(caller_file))
 
-        Notes:
-            - Консольный вывод использует sys.stderr (небуферизировано, видно при редиректе)
-            - backtrace=True и diagnose=True включают полную отладочную информацию
-            - Функция безопасна для многократного вызова (удаляет предыдущие обработчики)
-            - Параметры rotation и retention поддерживают единицы: MB, GB, day, week, month
+    # если имя лога не задано явно — формируем из имени модуля
+    if log_file is None:
+        module_name = os.path.splitext(os.path.basename(caller_file))[0]
+        log_file = f"{module_name}.log"
 
-        Raises:
-            ValueError: Если передан некорректный уровень логирования
-        """
-    logger.remove()  # Удаляем все текущие обработчики (включая стандартный)
-    # Добавляем запись ошибок в файл
+    log_path = os.path.join(base_dir, log_file)
+
+    logger.remove()  # Удаляем все текущие обработчики
+
+    # Лог в файл
     logger.add(
-        log_file,
+        log_path,
         format="{time} {level} {message}",
         level=level,
         rotation=rotation,
         retention=retention,
+        enqueue=True,  # Быстро + надежно
+        catch=True,
+        delay=False,  # Создать файл сразу
     )
 
     # Вывод в консоль
     logger.add(
         sys.stderr,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | {message}",
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | {message}",
         colorize=True,
         level=level,
         backtrace=True,
@@ -72,10 +75,3 @@ def setup_logger(
     )
 
     return logger
-
-
-# backtrace=True — расширяет трассировку исключения вверх по стеку вызовов, показывая полный стек, который привел к ошибке.
-# Это помогает увидеть не только место, где ошибка была поймана, но и весь путь до нее.
-#
-# diagnose=True — показывает значения всех переменных в контексте каждого фрейма стека при исключении.
-# Это облегчает отладку, так как можно увидеть, какие именно данные были в момент ошибки.
