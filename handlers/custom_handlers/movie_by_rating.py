@@ -12,7 +12,7 @@ from database.ORM import add_history
 from loggger_config import setup_logger
 
 # Создание логгер файла
-log = setup_logger(__file__)
+log = setup_logger(log_file=None, caller_file=__file__)
 
 
 @bot.message_handler(commands=["movie_by_rating"])
@@ -29,7 +29,7 @@ def ask_movie_rating(message: Message) -> None:
 
 
 @bot.message_handler(state=UserState.rating_movie)
-def ask_movie_jenre_for_rating(message: Message) -> None:
+def ask_movie_genre_for_rating(message: Message) -> None:
     """
     Обрабатывает сообщение с ввёденным рейтингом от пользователя.
     Сохраняет введённый данные пользователя в FSM и переводит состояние на ввод жанра.

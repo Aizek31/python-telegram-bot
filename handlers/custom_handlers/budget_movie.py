@@ -16,7 +16,7 @@ from loggger_config import setup_logger
 from database.ORM import add_history
 
 
-log = setup_logger(caller_file=__file__)
+log = setup_logger(log_file=None, caller_file=__file__)
 user_budget_type = {}
 
 
@@ -33,7 +33,7 @@ def low_budget_movie(message: Message) -> None:
     bot.set_state(message.from_user.id, UserState.genre_cinema, message.chat.id)
     bot.send_message(
         message.chat.id,
-        "Пожалуйста, выберите жанр фильма:",
+        "🍿 Пожалуйста, выберите жанр фильма: 🎥",
         reply_markup=gen_markup_genre(),
     )
 
@@ -48,11 +48,10 @@ def high_budget_movie(message: Message) -> None:
     :return: None
     """
     user_budget_type[message.from_user.id] = "high"
-    log.info("Команда high_budget_movie запустилась")
     bot.set_state(message.from_user.id, UserState.genre_cinema, message.chat.id)
     bot.send_message(
         message.chat.id,
-        "Пожалуйста, выберите жанр фильма:",
+        "🍿 Пожалуйста, выберите жанр фильма: 🎥",
         reply_markup=gen_markup_genre(),
     )
 
@@ -76,7 +75,7 @@ def callback_handler(callback_query) -> None:
     )
     bot.send_message(
         callback_query.from_user.id,
-        "Спасибо, записали выбранный вами жанр. Теперь введите год выпуска фильма:",
+        "Спасибо! 🎉 Записали выбранный вами жанр.\nТеперь введите год выпуска фильма: 📅",
     )
     bot.set_state(
         callback_query.from_user.id,
