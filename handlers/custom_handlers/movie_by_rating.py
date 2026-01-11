@@ -1,8 +1,3 @@
-# Стандартная библиотека
-from typing import Any
-
-from black import find_user_pyproject_toml
-
 # Сторонние пакеты
 from telebot.types import Message
 
@@ -16,7 +11,7 @@ from utils.filters_films_custom import target_genre, filter_response
 from database.ORM import add_history
 from loggger_config import setup_logger
 
-
+# Создание логгер файла
 log = setup_logger(__file__)
 
 

@@ -25,7 +25,7 @@ def ask_movie_name(message: Message) -> None:
     :return: None
     """
     bot.set_state(message.from_user.id, UserInfoState.keyword, message.chat.id)
-    bot.send_message(message.chat.id, "Пожалуйста, введите название фильма:")
+    bot.send_message(message.chat.id, "🎥 Пожалуйста, введите название фильма! 🍿")
 
 
 # Запрос жанра
