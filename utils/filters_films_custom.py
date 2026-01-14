@@ -1,7 +1,7 @@
 from typing import Any
 
 from config_data.config import RAPID_API_KEY
-from loggger_config import setup_logger
+from logger_config import setup_logger
 import requests
 import pprint
 from loguru import logger
@@ -163,3 +163,54 @@ def target_genre(
     filter_movie = filter_movie[:output_limit_movie]
 
     return filter_movie
+
+
+# Подпись для команд по поиску через ключевое слово
+def caption_for_search(film):
+    """
+    Создает подпись для фильма из данных.
+
+    Args:
+        film (dict): Словарь с данными о фильме
+
+    Returns:
+        str: Готовая подпись для фильма
+    """
+
+    if film["description"] is not None:
+        description = film["description"].replace("\xa0", " ")
+    else:
+        description = "Без описания"
+
+    caption = (
+        f"**{film['nameRu']}**, {film['year']}\n"
+        f"Жанр: {film['genre'] or 'не указан'}\n"
+        f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
+        f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
+        f"Описание фильма: *{description}*"
+    )
+    return caption
+
+
+# Подпись для команд по поиску через рейтинг и бюджет
+def caption_for_rating_budget(film):
+    """
+    Создает подпись для фильма из данных.
+
+    Args:
+        film (dict): Словарь с данными о фильме
+
+    Returns:
+        str: Готовая подпись для фильма
+    """
+
+    genres = film.get("genres") or []
+    genres = [genre["genre"] for genre in genres]
+    caption = (
+        f"**{film['nameRu']}**, {film['year']}\n"
+        f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
+        f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
+        f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
+        f"Описание фильма: *{film["description"]}*"
+    )
+    return caption

@@ -7,9 +7,13 @@ from config_data.config import RAPID_API_KEY
 from keyboards.inline import gen_markup_genre, gen_number_markup_rating
 from loader import bot
 from states.user_information_rating import UserState
-from utils.filters_films_custom import target_genre, filter_response
+from utils.filters_films_custom import (
+    target_genre,
+    filter_response,
+    caption_for_rating_budget,
+)
 from database.ORM import add_history
-from loggger_config import setup_logger
+from logger_config import setup_logger
 
 # Создание логгер файла
 log = setup_logger(log_file=None, caller_file=__file__)
@@ -148,16 +152,7 @@ def finish_callback_handler(callback_query) -> None:
 
         # TODO: это можно переделать в функцию, где из жанров делается список
         for film in user_target_genre:
-            # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
-            genres = film.get("genres") or []
-            genres = [genre["genre"] for genre in genres]
-            caption = (
-                f"**{film['nameRu']}**, {film['year']}\n"
-                f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
-                f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-                f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-                f"Описание фильма: *{film["description"]}*"
-            )
+            caption = caption_for_rating_budget(film)
 
             bot.send_photo(
                 chat_id=callback_query.message.chat.id,

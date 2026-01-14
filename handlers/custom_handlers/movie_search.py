@@ -9,9 +9,8 @@ from api.api_kinopoisk import api_request
 from config_data.config import RAPID_API_KEY
 from loader import bot
 from database.ORM import add_history, add_history_user_info
-from loggger_config import setup_logger
-
-# from utils.pagination import send_page
+from logger_config import setup_logger
+from utils.filters_films_custom import caption_for_search
 
 
 # Файл логирования
@@ -83,6 +82,10 @@ def callback_handler(callback_query) -> None:
     )
 
 
+# Глобальный словарь для хранения результатов пользователей
+user_results = {}  # {user_id: list_of_films}
+
+
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data, state=UserInfoState.output
 )
@@ -132,29 +135,17 @@ def finish_collection_callback_handler(callback_query) -> None:
         add_history_user_info(params, callback_query.from_user.id)
         add_history(answer, callback_query.from_user.id)
 
-        # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
-        for film in answer:
-            if film["description"] is not None:
-                description = film["description"].replace(
-                    "\xa0", " "
-                )  # убираем неразрывные пробелы
-            else:
-                description = "Без описания"
-
-            caption = (
-                f"**{film['nameRu']}**, {film['year']}\n"
-                f"Жанр: {film['genre'] or 'не указан'}\n"
-                f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-                f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-                f"Описание фильма: *{description}*"
-            )
-
-            bot.send_photo(
-                chat_id=callback_query.message.chat.id,
-                photo=film["posterUrlPreview"],
-                caption=caption,
-                parse_mode="Markdown",
-            )
+        # # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
+        # for film in answer:
+        #     caption = caption_for_search(film)
+        #
+        #     bot.send_photo(
+        #         chat_id=callback_query.message.chat.id,
+        #         photo=film["posterUrlPreview"],
+        #         caption=caption,
+        #         parse_mode="Markdown",
+        #     )
+        SUCCESS = True
     except ValueError:
         bot.send_message(
             callback_query.message.chat.id,

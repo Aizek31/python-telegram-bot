@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from .bot_database_films import History, db
 from .bot_database_params_search import HistorySearch
-from loggger_config import setup_logger
+from logger_config import setup_logger
 from utils.filters_films_custom import filter_genres
 from loguru import logger
 

@@ -11,8 +11,8 @@ from api.api_kinopoisk_budget import (
     low_check_budget,
     big_check_budget,
 )
-from utils.filters_films_custom import filter_response
-from loggger_config import setup_logger
+from utils.filters_films_custom import filter_response, caption_for_rating_budget
+from logger_config import setup_logger
 from database.ORM import add_history
 
 
@@ -153,17 +153,7 @@ def finish_callback_handler(message: Message) -> None:
         add_history(filter_movie, message.from_user.id)
         # TODO: это можно переделать в функцию, где из жанров делается список
         for film in filter_movie:
-            # достаем жанры из списка и делаем строки с жанрами через запятую для красивого вывода
-            genres = film.get("genres") or []
-            genres = [genre["genre"] for genre in genres]
-            # TODO: Можно переделат в функцию форматтер
-            caption = (
-                f"**{film['nameRu']}**, {film['year']}\n"
-                f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
-                f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
-                f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-                f"Описание фильма: *{film["description"]}*"
-            )
+            caption = caption_for_rating_budget(film)
 
             bot.send_photo(
                 chat_id=message.chat.id,
