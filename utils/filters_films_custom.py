@@ -3,7 +3,6 @@ from typing import Any
 from config_data.config import RAPID_API_KEY
 from logger_config import setup_logger
 import requests
-import pprint
 from loguru import logger
 
 
@@ -179,6 +178,8 @@ def caption_for_search(film):
 
     if film["description"] is not None:
         description = film["description"].replace("\xa0", " ")
+        if len(description) > 1024:
+            description = description[:500] + "..."
     else:
         description = "Без описания"
 

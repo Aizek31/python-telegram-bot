@@ -161,6 +161,8 @@ def finish_callback_handler(callback_query) -> None:
                 parse_mode="Markdown",
             )
 
+            SUCCESS = True
+
     except ValueError:
         bot.send_message(
             callback_query.message.chat.id,

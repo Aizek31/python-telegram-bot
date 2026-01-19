@@ -55,12 +55,3 @@ class History(ModelBase):
 
 db.connect()
 db.create_tables([History], safe=True)
-
-
-records = History.select(History.name_movie, History.date_search)
-
-print(f"Записей в таблице: {History.select().count()}")
-print("SQL запрос:", records.sql())  # Только SQL
-print("Данные:")
-for record in records:  # ← Выполняет запрос
-    print(record.name_movie, record.date_search.date())

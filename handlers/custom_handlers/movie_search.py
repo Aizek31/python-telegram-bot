@@ -1,6 +1,5 @@
 from typing import Any
-from telebot.types import Message
-
+from telebot.types import Message, InputMediaPhoto
 
 from keyboards.inline import gen_markup
 from keyboards.inline import gen_number_markup
@@ -11,6 +10,7 @@ from loader import bot
 from database.ORM import add_history, add_history_user_info
 from logger_config import setup_logger
 from utils.filters_films_custom import caption_for_search
+from utils.pagination import send_character_page
 
 
 # Файл логирования
@@ -82,12 +82,10 @@ def callback_handler(callback_query) -> None:
     )
 
 
-# Глобальный словарь для хранения результатов пользователей
-user_results = {}  # {user_id: list_of_films}
-
 
 @bot.callback_query_handler(
-    func=lambda callback_query: callback_query.data, state=UserInfoState.output
+    func=lambda callback_query: callback_query.data.isdigit(),
+    state=UserInfoState.output,
 )
 def finish_collection_callback_handler(callback_query) -> None:
     """
@@ -100,6 +98,7 @@ def finish_collection_callback_handler(callback_query) -> None:
     """
     SUCCESS = False
     try:
+        bot.answer_callback_query(callback_query.id)
         with bot.retrieve_data(
             callback_query.from_user.id, callback_query.message.chat.id
         ) as data:
@@ -119,6 +118,12 @@ def finish_collection_callback_handler(callback_query) -> None:
 
         headers = {"X-API-KEY": RAPID_API_KEY}
         answer = api_request(params, headers)
+        print(answer[5])
+        # Сохраняем список фильмов в данные пользователя
+        with bot.retrieve_data(
+            callback_query.from_user.id, callback_query.message.chat.id
+        ) as data:
+            data["films"] = answer
 
         if answer:
             bot.send_message(
@@ -135,17 +140,20 @@ def finish_collection_callback_handler(callback_query) -> None:
         add_history_user_info(params, callback_query.from_user.id)
         add_history(answer, callback_query.from_user.id)
 
-        # # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
-        # for film in answer:
-        #     caption = caption_for_search(film)
-        #
-        #     bot.send_photo(
-        #         chat_id=callback_query.message.chat.id,
-        #         photo=film["posterUrlPreview"],
-        #         caption=caption,
-        #         parse_mode="Markdown",
-        #     )
-        SUCCESS = True
+        # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
+        # Сохраняем результаты в глобальную переменную для пагинации
+        # (лучше использовать Redis/базу данных для продакшена)
+        first_film = answer[0]
+        caption = caption_for_search(first_film)
+
+        bot.send_photo(
+            chat_id=callback_query.message.chat.id,
+            photo=first_film["posterUrlPreview"],
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=send_character_page(answer),
+        )
+        # SUCCESS = True
     except ValueError:
         bot.send_message(
             callback_query.message.chat.id,
@@ -156,11 +164,43 @@ def finish_collection_callback_handler(callback_query) -> None:
         log.error(f"Error for user {callback_query.from_user.id}: {error}")
         bot.send_message(
             callback_query.message.chat.id,
-            "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /movie_by_rating",
+            "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /movie_search",
         )
-        # Сброс состояний
-        if SUCCESS:
-            bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
-            bot.delete_state(
-                callback_query.from_user.id, callback_query.message.chat.id
-            )
+
+    # Сброс состояний
+    if SUCCESS:
+        bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
+        bot.delete_state(callback_query.from_user.id, callback_query.message.chat.id)
+
+
+
+# Обработчик нажатий кнопок
+@bot.callback_query_handler(
+    func=lambda callback_query: callback_query.data.startswith("film#")
+)
+def show_films(callback_query):
+    bot.answer_callback_query(callback_query.id)
+    page = int(callback_query.data.split("#")[1])
+
+    # Берём сохраненные фильмы
+    with bot.retrieve_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    ) as data:
+        films = data["films"]
+
+    # Показываем фильм номер page (нумерация с 0)
+    film = films[page - 1]
+    paginator = send_character_page(films, page=page)
+    caption = caption_for_search(film)
+    media = InputMediaPhoto(
+        media=film["posterUrlPreview"],
+        caption=caption,  # ✅ Caption передаётся ЧЕРЕЗ InputMediaPhoto
+        parse_mode="Markdown",
+    )
+
+    bot.edit_message_media(
+        chat_id=callback_query.message.chat.id,
+        message_id=callback_query.message.message_id,
+        media=media,
+        reply_markup=paginator,
+    )
