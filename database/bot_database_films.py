@@ -12,8 +12,16 @@ from peewee import (
     fn,
 )
 
-from config_data.config import DB_PATH
+
 import os
+
+
+# Путь к существующей папке database (рядом с ботом)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_DIR = os.path.join(SCRIPT_DIR, "my_database")
+DB_PATH = os.path.join(DB_DIR, "bot_database_films.db")
+os.makedirs(DB_DIR, exist_ok=True)
 
 # подключаемся к базе данных my_database.db, если файл отсутствует то будет создан автоматически
 db = SqliteDatabase(DB_PATH)
@@ -44,11 +52,11 @@ class History(ModelBase):
     # Рейтинг фильма
     rating_movie = FloatField()
     # год производства фильма
-    year_movie = IntegerField(null=True, default="неизвестно")
+    year_movie = CharField(null=True, default="неизвестно")
     # Жанр фильма
     genre_movie = CharField(null=True, default="неизвестно")
     # Возрастной рейтинг
-    age_limit = IntegerField()
+    age_limit = CharField()
     # Постер фильма
     poster_url = CharField()
 

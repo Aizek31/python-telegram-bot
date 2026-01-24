@@ -1,8 +1,6 @@
 from typing import Dict, Any
 from .bot_database_films import History, db
 from .bot_database_params_search import HistorySearch
-from logger_config import setup_logger
-from utils.filters_films_custom import filter_genres
 from loguru import logger
 
 
@@ -28,14 +26,14 @@ def add_history(films: list[dict[str, Any]], user_id: int) -> None:
                     "description_movie": film.get("description")
                     or "Описание отсутствует",
                     "rating_movie": film.get("ratingKinopoisk") or 0.0,
-                    "year_movie": int(film.get("year", 0)),
+                    "year_movie": film.get("year") or "неизвестно",
                     "genre_movie": film.get("genre") or "неизвестно",
                     "age_limit": int(
                         film.get("ratingAgeLimits", "0")
                         .replace("+", "")
                         .replace("Возрастной рейтинг отсутствует", "0")
                     ),
-                    "poster_url": film.get("posterUrlPreview", ""),
+                    "poster_url": film.get("posterUrl", ""),
                     "user_id": user_id,  # здесь укажите нужный user_id
                 }
             )
@@ -47,14 +45,14 @@ def add_history(films: list[dict[str, Any]], user_id: int) -> None:
                     "description_movie": film.get("description")
                     or "Описание отсутствует",
                     "rating_movie": film.get("ratingKinopoisk") or 0.0,
-                    "year_movie": int(film.get("year", "отсутствует")),
+                    "year_movie": film.get("year", "отсутствует"),
                     "genre_movie": genres_str or "неизвестно",
                     "age_limit": int(
                         film.get("ratingAgeLimits", "0")
                         .replace("+", "")
                         .replace("Возрастной рейтинг отсутствует", "0")
                     ),
-                    "poster_url": film.get("posterUrlPreview", ""),
+                    "poster_url": film.get("posterUrl", ""),
                     "user_id": user_id,  # здесь укажите нужный user_id
                 }
             )
@@ -79,7 +77,7 @@ def add_history_user_info(info_search: Dict[str, Any], user_id: int) -> None:
         {
             "user_id": user_id,  # здесь укажите нужный user_id
             "name_movie": info_search.get("keyword", ""),
-            "jenre_movie": info_search.get("genre") or "неизвестно",
+            "genre_movie": info_search.get("genre") or "неизвестно",
             "output": info_search.get("output") or None,
         }
     )

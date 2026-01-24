@@ -31,7 +31,7 @@ def filter_id_films(
             "year",
             "genre",
             "ratingAgeLimits",
-            "posterUrlPreview",
+            "posterUrl",
         }
 
         # фильтрация словаря по нужным ключам(исключая "genres")
@@ -77,7 +77,7 @@ def filter_response(films: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "year",
         "description",
         "genres",
-        "posterUrlPreview",
+        "posterUrl",
         "ratingAgeLimits",
         "ratingKinopoisk",
     ]
@@ -178,8 +178,8 @@ def caption_for_search(film):
 
     if film["description"] is not None:
         description = film["description"].replace("\xa0", " ")
-        if len(description) > 1024:
-            description = description[:500] + "..."
+        if len(description) > 600:
+            description = description[:400] + "..."
     else:
         description = "Без описания"
 
@@ -205,6 +205,13 @@ def caption_for_rating_budget(film):
         str: Готовая подпись для фильма
     """
 
+    if film["description"] is not None:
+        description = film["description"].replace("\xa0", " ")
+        if len(description) > 600:
+            description = description[:400] + "..."
+    else:
+        description = "Без описания"
+
     genres = film.get("genres") or []
     genres = [genre["genre"] for genre in genres]
     caption = (
@@ -212,6 +219,35 @@ def caption_for_rating_budget(film):
         f"Жанр: {', '.join(genres) if genres else 'не указан'}\n"
         f"Возрастное ограничение: {film['ratingAgeLimits'] or 'отсутствует'}\n"
         f"Рейтинг Кинопоиска: {film['ratingKinopoisk'] or 'отсутствует'}\n\n"
-        f"Описание фильма: *{film["description"]}*"
+        f"Описание фильма: *{description}*"
+    )
+    return caption
+
+
+# Подпись фильмов для истории поиска
+def caption_for_history(film):
+    """
+    Создает подпись для фильма из данных.
+
+    Args:
+        film (dict): Словарь с данными о фильме
+
+    Returns:
+        str: Готовая подпись для фильма
+    """
+
+    if film["description_movie"] is not None:
+        description = film["description_movie"].replace("\xa0", " ")
+        if len(description) > 600:
+            description = description[:400] + "..."
+    else:
+        description = "Без описания"
+
+    caption = (
+        f"**{film['name_movie']}**, {film['year_movie']}\n"
+        f"Жанр: {film['genre_movie'] or 'не указан'}\n"
+        f"Возрастное ограничение: {film['age_limit'] or 'отсутствует'}\n"
+        f"Рейтинг Кинопоиска: {film['rating_movie'] or 'отсутствует'}\n\n"
+        f"Описание фильма: *{description}*"
     )
     return caption

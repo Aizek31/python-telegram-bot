@@ -4,7 +4,7 @@ from telebot.types import InlineKeyboardButton
 # from utils.filters_films_custom import create_film_caption
 
 
-# Создание самого пагинатора  с кнопками
+# Создание самого пагинатора с кнопками
 def send_character_page(character_pages, page=1):
 
     paginator = InlineKeyboardPaginator(

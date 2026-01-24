@@ -7,7 +7,7 @@ from states.user_information import UserInfoState
 from api.api_kinopoisk import api_request
 from config_data.config import RAPID_API_KEY
 from loader import bot
-from database.ORM import add_history, add_history_user_info
+from database.orm import add_history, add_history_user_info
 from logger_config import setup_logger
 from utils.filters_films_custom import caption_for_search
 from utils.pagination import send_character_page
@@ -82,7 +82,7 @@ def callback_handler(callback_query) -> None:
     )
 
 
-
+@log.catch
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data.isdigit(),
     state=UserInfoState.output,
@@ -105,6 +105,10 @@ def finish_collection_callback_handler(callback_query) -> None:
             data["output"] = int(callback_query.data)
             params = data  # создаём копию параметров
 
+            headers = {"X-API-KEY": RAPID_API_KEY}
+            answer = api_request(params, headers)
+            data["films"] = answer
+
         # удаляем клавиатуру
         bot.edit_message_reply_markup(
             callback_query.from_user.id,
@@ -115,16 +119,6 @@ def finish_collection_callback_handler(callback_query) -> None:
             callback_query.message.chat.id,
             "Спасибо! Ваш ответ записан. 🔍 Ищем фильмы...",
         )
-
-        headers = {"X-API-KEY": RAPID_API_KEY}
-        answer = api_request(params, headers)
-        print(answer[5])
-        # Сохраняем список фильмов в данные пользователя
-        with bot.retrieve_data(
-            callback_query.from_user.id, callback_query.message.chat.id
-        ) as data:
-            data["films"] = answer
-
         if answer:
             bot.send_message(
                 callback_query.message.chat.id, f"✅ Найдено фильмов: {len(answer)}"
@@ -143,12 +137,13 @@ def finish_collection_callback_handler(callback_query) -> None:
         # здесь код вывода информации о найденных фильмах(нужно его переписать как вспомогательную функцию)
         # Сохраняем результаты в глобальную переменную для пагинации
         # (лучше использовать Redis/базу данных для продакшена)
+
         first_film = answer[0]
         caption = caption_for_search(first_film)
 
         bot.send_photo(
             chat_id=callback_query.message.chat.id,
-            photo=first_film["posterUrlPreview"],
+            photo=first_film["posterUrl"],
             caption=caption,
             parse_mode="Markdown",
             reply_markup=send_character_page(answer),
@@ -173,7 +168,6 @@ def finish_collection_callback_handler(callback_query) -> None:
         bot.delete_state(callback_query.from_user.id, callback_query.message.chat.id)
 
 
-
 # Обработчик нажатий кнопок
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data.startswith("film#")
@@ -193,7 +187,7 @@ def show_films(callback_query):
     paginator = send_character_page(films, page=page)
     caption = caption_for_search(film)
     media = InputMediaPhoto(
-        media=film["posterUrlPreview"],
+        media=film["posterUrl"],
         caption=caption,  # ✅ Caption передаётся ЧЕРЕЗ InputMediaPhoto
         parse_mode="Markdown",
     )

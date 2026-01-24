@@ -7,9 +7,7 @@ if not find_dotenv():
 else:
     load_dotenv()
 
-# путь к базе данных
-DB_PATH = "database.db"
-DB_PATH_SEARCH = "database_search.db"
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 RAPID_API_KEY = os.getenv("RAPID_API_KEY")
 # поддерживаемые команды

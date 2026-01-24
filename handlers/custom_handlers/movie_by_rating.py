@@ -12,7 +12,7 @@ from utils.filters_films_custom import (
     filter_response,
     caption_for_rating_budget,
 )
-from database.ORM import add_history
+from database.orm import add_history
 from logger_config import setup_logger
 
 # Создание логгер файла

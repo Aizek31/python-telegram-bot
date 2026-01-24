@@ -1,4 +1,4 @@
-# TODO: здесь нужно написать модель для базы данных для параметров поиска, которые вводить пользователь
+import os
 from datetime import datetime
 
 from peewee import (
@@ -11,8 +11,12 @@ from peewee import (
     AutoField,
 )
 
-from config_data.config import DB_PATH_SEARCH
 
+# Путь к существующей папке database (рядом с ботом)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_DIR = os.path.join(SCRIPT_DIR, "my_database")
+DB_PATH_SEARCH = os.path.join(DB_DIR, "user_params_database.db")
+os.makedirs(DB_DIR, exist_ok=True)
 
 # подключаемся к базе данных database_search.db, если файл отсутствует то будет создан автоматически
 db = SqliteDatabase(DB_PATH_SEARCH)
@@ -39,7 +43,7 @@ class HistorySearch(ModelBase):
     # Рейтинг фильма
     name_movie = CharField()
     # Жанр фильма
-    jenre_movie = CharField(null=True, default="неизвестно")
+    genre_movie = CharField(null=True, default="неизвестно")
     # количество фильмов для показа
     output = IntegerField()
 

@@ -3,7 +3,7 @@ from typing import Any
 from telebot.types import Message
 
 from keyboards.inline import gen_markup_genre
-from states.user_information_budjet import UserState
+from states.user_information_budget import UserState
 from loader import bot
 from api.api_kinopoisk_budget import (
     search_id_genre,
@@ -13,7 +13,7 @@ from api.api_kinopoisk_budget import (
 )
 from utils.filters_films_custom import filter_response, caption_for_rating_budget
 from logger_config import setup_logger
-from database.ORM import add_history
+from database.orm import add_history
 
 
 log = setup_logger(log_file=None, caller_file=__file__)
