@@ -17,3 +17,17 @@ def send_character_page(character_pages, page=1):
     # )
 
     return paginator.markup
+
+
+def send_character_page_rating(character_pages, page=1):
+
+    paginator = InlineKeyboardPaginator(
+        len(character_pages), current_page=page, data_pattern="cinema#{page}"
+    )
+
+    # paginator.add_after(
+    #     InlineKeyboardButton("Назад", callback_data="Назад"),
+    #     InlineKeyboardButton("Вперёд", callback_data="Вперёд"),
+    # )
+
+    return paginator.markup

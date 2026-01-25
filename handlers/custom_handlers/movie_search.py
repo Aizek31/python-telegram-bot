@@ -82,7 +82,6 @@ def callback_handler(callback_query) -> None:
     )
 
 
-@log.catch
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data.isdigit(),
     state=UserInfoState.output,
@@ -148,7 +147,7 @@ def finish_collection_callback_handler(callback_query) -> None:
             parse_mode="Markdown",
             reply_markup=send_character_page(answer),
         )
-        # SUCCESS = True
+        SUCCESS = True
     except ValueError:
         bot.send_message(
             callback_query.message.chat.id,
@@ -161,11 +160,6 @@ def finish_collection_callback_handler(callback_query) -> None:
             callback_query.message.chat.id,
             "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /movie_search",
         )
-
-    # Сброс состояний
-    if SUCCESS:
-        bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
-        bot.delete_state(callback_query.from_user.id, callback_query.message.chat.id)
 
 
 # Обработчик нажатий кнопок
@@ -198,3 +192,11 @@ def show_films(callback_query):
         media=media,
         reply_markup=paginator,
     )
+
+
+# Сброс состояний
+@bot.message_handler(commands=["cancel"])
+def reset_search(message: Message) -> None:
+    bot.reset_data(message.from_user.id, message.chat.id)
+    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.send_message(message.chat.id, "🔄 Поиск сброшен. Используйте /movie_search")

@@ -1,5 +1,5 @@
 # Сторонние пакеты
-from telebot.types import Message
+from telebot.types import Message, InputMediaPhoto
 
 # Локальные модули проекта (в алфавитном порядке)
 from api.api_kinopoisk_rating import api_request_rating
@@ -14,6 +14,7 @@ from utils.filters_films_custom import (
 )
 from database.orm import add_history
 from logger_config import setup_logger
+from utils.pagination import send_character_page_rating
 
 # Создание логгер файла
 log = setup_logger(log_file=None, caller_file=__file__)
@@ -96,7 +97,8 @@ def callback_handler(callback_query) -> None:
 
 
 @bot.callback_query_handler(
-    func=lambda callback_query: callback_query.data, state=UserState.output_films
+    func=lambda callback_query: callback_query.data.isdigit(),
+    state=UserState.output_films,
 )
 def finish_callback_handler(callback_query) -> None:
     """
@@ -116,6 +118,14 @@ def finish_callback_handler(callback_query) -> None:
             rating_user = enter_info["rating_cinema"]
             params = {"ratingFrom": 0, "ratingTo": rating_user}
 
+            headers = {"X-API-KEY": RAPID_API_KEY}
+            answer = api_request_rating(params, headers)
+            output_limit_film = int(user_info["output"])
+            answer_filters = filter_response(answer)
+            genre = user_info["genre"]
+            user_target_genre = target_genre(output_limit_film, genre, answer_filters)
+            user_info["cinema"] = user_target_genre
+
         bot.edit_message_reply_markup(
             callback_query.from_user.id,
             callback_query.message.message_id,
@@ -126,12 +136,12 @@ def finish_callback_handler(callback_query) -> None:
             "Спасибо! Ваш ответ записан. 🔍 Ищем фильмы...",
         )
 
-        headers = {"X-API-KEY": RAPID_API_KEY}
-        answer = api_request_rating(params, headers)
-        output_limit_film = int(user_info["output"])
-        answer_filters = filter_response(answer)
-        genre = user_info["genre"]
-        user_target_genre = target_genre(output_limit_film, genre, answer_filters)
+        # headers = {"X-API-KEY": RAPID_API_KEY}
+        # answer = api_request_rating(params, headers)
+        # output_limit_film = int(user_info["output"])
+        # answer_filters = filter_response(answer)
+        # genre = user_info["genre"]
+        # user_target_genre = target_genre(output_limit_film, genre, answer_filters)
 
         # rating_text = data["rating_cinema"]
         if user_target_genre:
@@ -151,17 +161,18 @@ def finish_callback_handler(callback_query) -> None:
         add_history(user_target_genre, callback_query.from_user.id)
 
         # TODO: это можно переделать в функцию, где из жанров делается список
-        for film in user_target_genre:
-            caption = caption_for_rating_budget(film)
+        # for film in user_target_genre:
+        #     caption = caption_for_rating_budget(film)
+        first_cinema = user_target_genre[0]
+        caption = caption_for_rating_budget(first_cinema)
 
-            bot.send_photo(
-                chat_id=callback_query.message.chat.id,
-                photo=film["posterUrlPreview"],
-                caption=caption,
-                parse_mode="Markdown",
-            )
-
-            SUCCESS = True
+        bot.send_photo(
+            chat_id=callback_query.message.chat.id,
+            photo=first_cinema["posterUrl"],
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=send_character_page_rating(user_target_genre),
+        )
 
     except ValueError:
         bot.send_message(
@@ -175,9 +186,43 @@ def finish_callback_handler(callback_query) -> None:
             callback_query.message.chat.id,
             "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /movie_by_rating",
         )
-        # Сброс состояний
-        if SUCCESS:
-            bot.reset_data(callback_query.from_user.id, callback_query.message.chat.id)
-            bot.delete_state(
-                callback_query.from_user.id, callback_query.message.chat.id
-            )
+
+
+# Обработчик нажатий кнопок
+@bot.callback_query_handler(
+    func=lambda callback_query: callback_query.data.startswith("cinema#")
+)
+def show_films(callback_query):
+    bot.answer_callback_query(callback_query.id)
+    page = int(callback_query.data.split("#")[1])
+
+    # Берём сохраненные фильмы
+    with bot.retrieve_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    ) as user_info:
+        films = user_info["cinema"]
+
+    # Показываем фильм номер page (нумерация с 0)
+    film = films[page - 1]
+    paginator = send_character_page_rating(films, page=page)
+    caption = caption_for_rating_budget(film)
+    media = InputMediaPhoto(
+        media=film["posterUrl"],
+        caption=caption,  # ✅ Caption передаётся ЧЕРЕЗ InputMediaPhoto
+        parse_mode="Markdown",
+    )
+
+    bot.edit_message_media(
+        chat_id=callback_query.message.chat.id,
+        message_id=callback_query.message.message_id,
+        media=media,
+        reply_markup=paginator,
+    )
+
+
+# Сброс состояний
+@bot.message_handler(commands=["cancel"])
+def reset_search(message: Message) -> None:
+    bot.reset_data(message.from_user.id, message.chat.id)
+    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.send_message(message.chat.id, "🔄 Поиск сброшен. Используйте /movie_by_rating")
