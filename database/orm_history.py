@@ -1,9 +1,12 @@
 import os
+from datetime import date
+from typing import Any
+
 from peewee import SqliteDatabase
 from database.bot_database_films import History
 
 
-def get_database():
+def get_database() -> SqliteDatabase:
     """Возвращает подключенную базу данных"""
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +16,7 @@ def get_database():
     return db
 
 
-def get_all_history(db):
+def get_all_history(db: SqliteDatabase) -> list[dict[str, Any]]:
     """
     Получить ВСЕ записи истории поиска фильмов
 
@@ -33,7 +36,7 @@ def get_all_history(db):
             db.close()
 
 
-def get_history_by_date(target_date, db):
+def get_history_by_date(target_date: date, db: SqliteDatabase) -> list[dict[str, Any]]:
     """
     Получить записи истории поиска за конкретную дату
 

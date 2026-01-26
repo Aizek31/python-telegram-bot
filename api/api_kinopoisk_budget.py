@@ -1,9 +1,7 @@
 from typing import Any
-from config_data.config import RAPID_API_KEY
 import requests
 
-# from loguru import logger
-# from loggger_config import setup_logger
+from config_data.config import RAPID_API_KEY
 
 
 def search_id_genre(genre_from_user: str) -> int:

@@ -1,9 +1,6 @@
-# TODO: здесь нужно реализовать код поиска фильма по рейтингу
 from typing import Any
 import requests
 from loguru import logger
-
-# from log_config import logger
 
 
 @logger.catch

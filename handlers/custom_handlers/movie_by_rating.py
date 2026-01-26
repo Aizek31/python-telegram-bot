@@ -181,7 +181,7 @@ def finish_callback_handler(callback_query) -> None:
 @bot.callback_query_handler(
     func=lambda callback_query: callback_query.data.startswith("cinema#")
 )
-def show_films(callback_query):
+def show_films(callback_query) -> None:
     bot.answer_callback_query(callback_query.id)
     page = int(callback_query.data.split("#")[1])
 

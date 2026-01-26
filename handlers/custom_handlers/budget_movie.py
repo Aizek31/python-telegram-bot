@@ -1,6 +1,4 @@
-# TODO: тут будет код для поиска фильмов с низким бюджетом
-from typing import Any
-from telebot.types import Message
+from telebot.types import Message, InputMediaPhoto
 
 from keyboards.inline import gen_markup_genre
 from states.user_information_budget import UserState
@@ -14,7 +12,7 @@ from api.api_kinopoisk_budget import (
 from utils.filters_films_custom import filter_response, caption_for_rating_budget
 from logger_config import setup_logger
 from database.orm import add_history
-
+from utils.pagination import send_character_page_budget
 
 log = setup_logger(log_file=None, caller_file=__file__)
 user_budget_type = {}
@@ -95,7 +93,7 @@ def finish_callback_handler(message: Message) -> None:
     """
 
     budget_type = user_budget_type.get(message.from_user.id, "low")
-    SUCCESS = False  # Флаг успешного завершения
+
     try:
         # Валидация года
         year = int(message.text)
@@ -127,6 +125,9 @@ def finish_callback_handler(message: Message) -> None:
             big_budget = big_check_budget(catalog_movie)
             # вывод отфильтрованных фильмов
             filter_movie = filter_response(big_budget)
+
+            with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+                data["movie"] = filter_movie
         else:
             bot.send_message(
                 message.chat.id,
@@ -135,6 +136,9 @@ def finish_callback_handler(message: Message) -> None:
             low_budget = low_check_budget(catalog_movie)
             # вывод отфильтрованных фильмов
             filter_movie = filter_response(low_budget)
+
+            with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+                data["movie"] = filter_movie
 
         budget_text = "высокобюджетных" if budget_type == "high" else "низкобюджетных"
         if not filter_movie:
@@ -151,17 +155,17 @@ def finish_callback_handler(message: Message) -> None:
 
         # Запись найденных фильмов в базу данных
         add_history(filter_movie, message.from_user.id)
-        # TODO: это можно переделать в функцию, где из жанров делается список
-        for film in filter_movie:
-            caption = caption_for_rating_budget(film)
 
-            bot.send_photo(
-                chat_id=message.chat.id,
-                photo=film["posterUrlPreview"],
-                caption=caption,
-                parse_mode="Markdown",
-            )
-            SUCCESS = True  # ← Только при успехе
+        first_movie = filter_movie[0]
+        caption = caption_for_rating_budget(first_movie)
+
+        bot.send_photo(
+            chat_id=message.chat.id,
+            photo=first_movie["posterUrl"],
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=send_character_page_budget(filter_movie),
+        )
 
     except ValueError:
         bot.send_message(
@@ -176,7 +180,52 @@ def finish_callback_handler(message: Message) -> None:
             "❌ Произошла ошибка при поиске фильмов. Попробуйте позже или используйте /low_budget_movie",
         )
 
-    # Сброс состояний
-    if SUCCESS:
-        bot.reset_data(message.from_user.id, message.chat.id)
-        bot.delete_state(message.from_user.id, message.chat.id)
+
+# Обработчик нажатий кнопок
+@bot.callback_query_handler(
+    func=lambda callback_query: callback_query.data.startswith("movie#")
+)
+def show_films(callback_query) -> None:
+    bot.answer_callback_query(callback_query.id)
+    page = int(callback_query.data.split("#")[1])
+
+    # Берём сохраненные фильмы
+    with bot.retrieve_data(
+        callback_query.from_user.id, callback_query.message.chat.id
+    ) as data:
+        films = data["movie"]
+
+    # Показываем фильм номер page (нумерация с 0)
+    film = films[page - 1]
+    paginator = send_character_page_budget(films, page=page)
+    caption = caption_for_rating_budget(film)
+    media = InputMediaPhoto(
+        media=film["posterUrl"],
+        caption=caption,  # ✅ Caption передаётся ЧЕРЕЗ InputMediaPhoto
+        parse_mode="Markdown",
+    )
+
+    bot.edit_message_media(
+        chat_id=callback_query.message.chat.id,
+        message_id=callback_query.message.message_id,
+        media=media,
+        reply_markup=paginator,
+    )
+
+
+# Сброс состояний
+@bot.message_handler(commands=["cancel"])
+def reset_search(message: Message) -> None:
+    """
+    Сбрасывает состояние пользователя и завершает текущий поиск.
+
+    Очищает все сохраненные данные пользователя в FSM (Finite State Machine)
+    и временные данные поиска. Отправляет уведомление о сбросе и напоминает
+    о доступной команде для запуска нового поиска.
+
+    :param message: Объект сообщения Telegram с командой /cancel
+    :return: None
+    """
+    bot.reset_data(message.from_user.id, message.chat.id)
+    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.send_message(message.chat.id, "🔄 Поиск сброшен. Используйте /movie_by_rating")

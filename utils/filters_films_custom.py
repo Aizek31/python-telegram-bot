@@ -1,9 +1,7 @@
 from typing import Any
-
-from config_data.config import RAPID_API_KEY
-from logger_config import setup_logger
 import requests
 from loguru import logger
+from config_data.config import RAPID_API_KEY
 
 
 # Получаем все фильмы по ID
@@ -58,9 +56,6 @@ def filter_id_films(
         cinema.append(filtered_dict)
 
     return cinema
-
-
-##########################################################################
 
 
 @logger.catch
@@ -120,7 +115,6 @@ def filter_response(films: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return filtered_data
 
 
-# TODO: вроде нигде не используется, нужно будет удалить
 def filter_genres(filtered_data: list[dict[str, Any]]) -> str:
     """
     Функция достает все жанры фильма из словаря и склеивает их в виде единой строки
