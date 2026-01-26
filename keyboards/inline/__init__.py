@@ -1,0 +1,5 @@
+from .custom_inline_search import gen_markup
+from .number_of_films_search import gen_number_markup
+from .custom_inline_rating import gen_markup_genre
+from .number_of_films_rating import gen_number_markup_rating
+from .custom_inline_budget_low import gen_markup_genre_budget
