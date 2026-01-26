@@ -197,6 +197,17 @@ def show_films(callback_query):
 # Сброс состояний
 @bot.message_handler(commands=["cancel"])
 def reset_search(message: Message) -> None:
+    """
+    Сбрасывает состояние пользователя и завершает текущий поиск.
+
+    Очищает все сохраненные данные пользователя в FSM (Finite State Machine)
+    и временные данные поиска. Отправляет уведомление о сбросе и напоминает
+    о доступной команде для запуска нового поиска.
+
+    :param message: Объект сообщения Telegram с командой /cancel
+    :return: None
+    """
+
     bot.reset_data(message.from_user.id, message.chat.id)
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.chat.id, "🔄 Поиск сброшен. Используйте /movie_search")

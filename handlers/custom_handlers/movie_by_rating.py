@@ -136,14 +136,6 @@ def finish_callback_handler(callback_query) -> None:
             "Спасибо! Ваш ответ записан. 🔍 Ищем фильмы...",
         )
 
-        # headers = {"X-API-KEY": RAPID_API_KEY}
-        # answer = api_request_rating(params, headers)
-        # output_limit_film = int(user_info["output"])
-        # answer_filters = filter_response(answer)
-        # genre = user_info["genre"]
-        # user_target_genre = target_genre(output_limit_film, genre, answer_filters)
-
-        # rating_text = data["rating_cinema"]
         if user_target_genre:
             bot.send_message(
                 callback_query.message.chat.id,
@@ -160,9 +152,6 @@ def finish_callback_handler(callback_query) -> None:
         # Запись найденных фильмов в базу данных
         add_history(user_target_genre, callback_query.from_user.id)
 
-        # TODO: это можно переделать в функцию, где из жанров делается список
-        # for film in user_target_genre:
-        #     caption = caption_for_rating_budget(film)
         first_cinema = user_target_genre[0]
         caption = caption_for_rating_budget(first_cinema)
 
@@ -223,6 +212,16 @@ def show_films(callback_query):
 # Сброс состояний
 @bot.message_handler(commands=["cancel"])
 def reset_search(message: Message) -> None:
+    """
+    Сбрасывает состояние пользователя и завершает текущий поиск.
+
+    Очищает все сохраненные данные пользователя в FSM (Finite State Machine)
+    и временные данные поиска. Отправляет уведомление о сбросе и напоминает
+    о доступной команде для запуска нового поиска.
+
+    :param message: Объект сообщения Telegram с командой /cancel
+    :return: None
+    """
     bot.reset_data(message.from_user.id, message.chat.id)
     bot.delete_state(message.from_user.id, message.chat.id)
     bot.send_message(message.chat.id, "🔄 Поиск сброшен. Используйте /movie_by_rating")
